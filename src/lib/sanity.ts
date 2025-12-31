@@ -6,7 +6,7 @@ export const client = createClient({
   dataset: 'production', // Coloquei direto aqui
   useCdn: false,
   apiVersion: '2023-05-03', 
-  token: 'skOu8f2iUopTuMcORJBtqWOgiPyviUsn7XFxZ37yE3wumNuXNsxwXuzlNPtQnfm0TbInvw2fHnI0rCFr8n2LDuEpcigWJhHce1iHfmAHOH10XPGVJySrrNcA6zrwBt5bZ53VsewMq7uQUecQ1A0QYLJdeq1ryJFoSKAjnFCjHUW4ZVY2MvGc', 
+  token: 'sknDNmQ8F38PnuumlvfdPvI4LuLAyDxlk9RKk6Z4mZ1Ryha3N4L5XLaQvD48Gc45PlV2miavC4prtTjG8T8k50JrjjQT1WVrQBC5Lkqbi0sJy46eEEBO3HIRI6nH1W4v9VwG75dGLhBfyBhO6yR7tszpXUn1uzZ17heyX4B0tILTYDq0tDXn', 
 });
 
 // Configuração do construtor de imagens
