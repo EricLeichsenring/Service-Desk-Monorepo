@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // 1. Importar navegação
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { 
   Image, FileText, Trash2, Plus, Loader2, LogOut, 

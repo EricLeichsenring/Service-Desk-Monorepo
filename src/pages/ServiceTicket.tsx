@@ -186,7 +186,7 @@ export function ServiceTicket() {
                     <p className="font-bold text-gray-800 text-lg capitalize mb-1">{searchResult.status}</p>
                     <p className="text-sm text-gray-600">Local: {searchResult.local}</p>
 
-                    {/* EXIBIÇÃO DA JUSTIFICATIVA (Aqui estava o erro do >>) */}
+                    {/* EXIBIÇÃO DA JUSTIFICATIVA */}
                     {searchResult.status === 'cancelado' && searchResult.justificativa && (
                       <div className="mt-3 bg-red-50 border border-red-100 p-3 rounded text-sm text-red-800">
                         <span className="font-bold block mb-1">Motivo do Cancelamento:</span>

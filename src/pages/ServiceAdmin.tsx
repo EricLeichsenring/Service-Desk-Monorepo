@@ -76,7 +76,7 @@ export function ServiceAdmin() {
     const user = JSON.parse(userStr);
     setCurrentUser(user);
 
-    // Passamos o role do usuário para a função de busca aplicar o filtro
+    // Passa o role do usuário para a função de busca aplicar o filtro
     fetchTickets(user.role);
   }, []);
 
@@ -235,7 +235,7 @@ export function ServiceAdmin() {
       </div>
     `;
 
-    // 8. Injeta o conteúdo na janela (Sem usar document.write)
+    // 8. Injeta o conteúdo na janela
     printWindow.document.title = "Relatório de O.S.";
     printWindow.document.head.innerHTML = styles;
     printWindow.document.body.innerHTML = bodyContent;

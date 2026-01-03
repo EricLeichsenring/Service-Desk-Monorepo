@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { DripCalculator } from '../components/DripCalculator'
+import { DilutionCalculator } from '../components/DilutionCalculator';
 import { Link } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Carousel } from '../components/Carousel';
@@ -5,13 +8,13 @@ import {
   Mail,
   Users,
   Settings,
-  FileText,
-  Calendar,
   Search,
   Headphones,
   KeyRound,
   FlaskConical,
   Radiation,
+  Droplet,
+  Syringe,
 } from 'lucide-react';
 
 interface ServiceCard {
@@ -44,6 +47,20 @@ const services: ServiceCard[] = [
     href: 'https://openid.oxy.elotech.com.br/auth/realms/guaratuba/protocol/openid-connect/auth?client_id=minha-conta-frontend&redirect_uri=https%3A%2F%2Fguaratuba.oxy.elotech.com.br%2F&state=659e5d6d-6548-4ce4-9b57-63c208f3d9b7&response_mode=fragment&response_type=code&scope=openid',
     external: true,
   },
+    {
+    title: 'Abrir Chamado',
+    description: 'Central de atendimento técnico',
+    icon: Headphones,
+    href: '/abrir-chamado',
+    external: false,
+  },
+  {
+    title: 'IDS',
+    description: 'Acesso ao IDS',
+    icon: KeyRound,
+    href: 'https://guaratuba-saude.ids.inf.br/guaratuba/2/IDSSaude.dll',
+    external: true,
+  },
   {
     title: 'G-SUS',
     description: 'Acesso ao G-SUS',
@@ -59,30 +76,40 @@ const services: ServiceCard[] = [
     external: true,
   },
   {
-    title: 'Buscar & Imprimir',
-    description: 'Pesquise documentos para impressão',
-    icon: Search,
-    href: '/documentos',
-    external: false,
-  },
-  {
-    title: 'Abrir Chamado',
-    description: 'Central de atendimento técnico',
-    icon: Headphones,
-    href: '/abrir-chamado',
-    external: false,
-  },
-  {
     title: 'Laboratorio',
     description: 'Acesso a exames',
     icon: FlaskConical,
     href: 'https://lanac.shiftcloud.com.br/shift/lis/lanac/elis/s01.iu.web.Login.cls?config=UNICO',
     external: true,
   },
+  {
+    title: 'Buscar & Imprimir',
+    description: 'Documentos e Pops',
+    icon: Search,
+    href: '/documentos',
+    external: false,
+  },
+  {
+    title: 'Calculadora de Gotejamento',
+    description: 'Calculadora de Gotejamento',
+    icon: Droplet,
+    href: '#',
+    external: false,
+  },
+  {
+    title: 'Diluição de Medicamento',
+    description: 'Cálculo para medicação IM',
+    icon: Syringe, 
+    href: '#',
+    external: false,
+  },
 ];
 
 export function Home() {
-  return (
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showDilution, setShowDilution] = useState(false);
+
+return (
     <Layout>
       <div className="max-w-7xl mx-auto px-6 py-8">
         <Carousel />
@@ -91,16 +118,45 @@ export function Home() {
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Serviços Disponíveis</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {services.map((service) => (
-              <ServiceCardComponent key={service.title} {...service} />
+              <ServiceCardComponent 
+                key={service.title} 
+                {...service}
+                
+                
+                // verifica os  títulos
+                onAction={
+                  service.title === 'Calculadora de Gotejamento' ? () => setShowCalculator(true) :
+                  service.title === 'Diluição de Medicamento' ? () => setShowDilution(true) : 
+                  undefined
+                }
+              />
             ))}
           </div>
         </div>
+        
+        {/* MODAIS */}
+        
+        {/* Modal 1: Gotejamento */}
+        {showCalculator && <DripCalculator onClose={() => setShowCalculator(false)} />}
+        
+        {/* Modal 2: Diluição (Novo) */}
+        {showDilution && <DilutionCalculator onClose={() => setShowDilution(false)} />}
+        
       </div>
     </Layout>
   );
 }
 
-function ServiceCardComponent({ title, description, icon: Icon, href, external }: ServiceCard) {
+// Adicione a prop onAction na tipagem
+function ServiceCardComponent({ 
+  title, 
+  description, 
+  icon: Icon, 
+  href, 
+  external, 
+  onAction 
+}: ServiceCard & { onAction?: () => void }) {
+  
   const cardContent = (
     <>
       <div className="flex items-center justify-center w-14 h-14 bg-blue-100 rounded-lg mb-4">
@@ -112,21 +168,27 @@ function ServiceCardComponent({ title, description, icon: Icon, href, external }
   );
 
   const cardClasses =
-    'bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-200 hover:border-blue-300 cursor-pointer';
+    'bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-200 hover:border-blue-300 cursor-pointer block w-full text-left'; 
 
+  // 1. LÓGICA DO MODAL: Se tiver uma ação, renderiza um botão/div
+  if (onAction) {
+    return (
+      <button onClick={(e) => { e.preventDefault(); onAction(); }} className={cardClasses}>
+        {cardContent}
+      </button>
+    );
+  }
+
+  // 2. LÓGICA LINK EXTERNO
   if (external) {
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={cardClasses}
-      >
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cardClasses}>
         {cardContent}
       </a>
     );
   }
 
+  // 3. LÓGICA ROTA INTERNA
   return (
     <Link to={href} className={cardClasses}>
       {cardContent}

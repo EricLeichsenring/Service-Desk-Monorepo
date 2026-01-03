@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '../components/Layout';
 import { Search, Printer, FileText } from 'lucide-react';
-import { client } from '../lib/sanity'; // Certifique-se que o caminho está correto
+import { client } from '../lib/sanity'; 
 
 // Interface para os dados que vêm do Sanity
 interface DocumentoSanity {
@@ -11,7 +11,7 @@ interface DocumentoSanity {
   _createdAt: string;
 }
 
-// Interface usada no componente (compatível com seu layout)
+// Interface usada no componente
 interface Document {
   id: string;
   name: string;

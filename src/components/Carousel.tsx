@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
 import { client, urlFor } from '../lib/sanity';
 
+interface Slide {
+  titulo: string;
+  texto: string;
+  imagem?: any; // caso venha sem imagem
+}
+
 export function Carousel() {
-  const [slides, setSlides] = useState([]);
+  const [slides, setSlides] = useState<Slide[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // 1. Busca os dados do Sanity
@@ -16,7 +22,7 @@ export function Carousel() {
       .catch(console.error);
   }, []);
 
-  // 2. Configuração do Autoplay (Novo)
+  // 2. Configuração do Autoplay
   useEffect(() => {
     // Só inicia o timer se houver mais de 1 slide
     if (slides.length <= 1) return;
@@ -69,7 +75,7 @@ export function Carousel() {
           {slides.map((_, index) => (
             <button
               key={index}
-              onClick={() => setCurrentIndex(index)} // O usuário ainda pode clicar para mudar manualmente
+              onClick={() => setCurrentIndex(index)} // O usuário pode clicar para mudar manualmente
               className={`w-3 h-3 rounded-full transition-all ${
                 index === currentIndex ? 'bg-white scale-110' : 'bg-white/40 hover:bg-white/60'
               }`}
