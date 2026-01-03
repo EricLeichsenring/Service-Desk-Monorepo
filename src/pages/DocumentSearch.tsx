@@ -30,7 +30,7 @@ export function DocumentSearch() {
     const fetchDocuments = async () => {
       try {
         // Query GROQ
-        // 1. Filtra pelo tipo que você definiu no schema ('documentosImpressao')
+        // 1. Filtra pelo tipo no schema ('documentosImpressao')
         // 2. Traz o título, a data de criação e a URL do arquivo
         const query = `
           *[_type == "documentosImpressao"] | order(lower(titulo) asc) {
@@ -43,7 +43,7 @@ export function DocumentSearch() {
 
         const data: DocumentoSanity[] = await client.fetch(query);
 
-        // Formata os dados para o padrão que seu layout já usa
+        // Formata os dados para o padrão do layout
         const formattedDocs = data.map((doc) => ({
           id: doc._id,
           name: doc.titulo,
@@ -122,10 +122,10 @@ export function DocumentSearch() {
                   </div>
                   <button
                     onClick={() => handlePrint(doc.url)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 p-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" title='Imprimir'
                   >
                     <Printer className="w-4 h-4" />
-                    <span>Imprimir</span>
+                    <span className='hidden sm:block'>Imprimir</span>
                   </button>
                 </div>
               ))
