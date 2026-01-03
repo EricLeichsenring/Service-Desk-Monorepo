@@ -29,6 +29,7 @@ export const userType = defineType({
         list: [
           { title: 'Equipe de Manutenção (O.S.)', value: 'manutencao' },
           { title: 'Comunicação / Marketing', value: 'comunicacao' },
+          { title: 'ti', value: 'ti'},
           { title: 'Administrador Root (Acesso Total)', value: 'root' }
         ]
       }

@@ -13,13 +13,32 @@ export const ticketType = defineType({
       options: {
         list: [
           { title: 'Pendente', value: 'pendente' },
-          { title: 'Em Andamento', value: 'andamento' },
+          // ATENÇÃO: Mudado de 'andamento' para 'em_andamento' para bater com o código React
+          { title: 'Em Andamento', value: 'em_andamento' }, 
           { title: 'Concluído', value: 'concluido' },
+          // NOVO: Adicionado status cancelado
+          { title: 'Cancelado', value: 'cancelado' }, 
         ],
-        layout: 'radio' // Aparece como bolinhas de seleção
+        layout: 'radio'
       },
-      initialValue: 'pendente' // Começa sempre como pendente
+      initialValue: 'pendente'
     }),
+    
+    // --- NOVO CAMPO: Roteamento Automático ---
+    defineField({
+      name: 'setor',
+      title: 'Setor Responsável',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'TI', value: 'ti' },
+          { title: 'Manutenção', value: 'manutencao' }
+        ],
+        layout: 'radio'
+      },
+      initialValue: 'manutencao' // Valor padrão por segurança
+    }),
+
     defineField({
       name: 'nome',
       title: 'Nome do Solicitante',
@@ -40,6 +59,24 @@ export const ticketType = defineType({
       title: 'Descrição',
       type: 'text',
     }),
+    
+    // --- NOVO CAMPO: Material Utilizado ---
+    defineField({
+      name: 'materialUtilizado',
+      title: 'Material Utilizado',
+      type: 'text',
+      // Só aparece no painel do Sanity se estiver concluído
+      hidden: ({document}) => document?.status !== 'concluido' 
+    }),
+
+    defineField({
+      name: 'justificativa',
+      title: 'Justificativa de Cancelamento',
+      type: 'text', 
+      // Só aparece no painel do Sanity se estiver cancelado
+      hidden: ({document}) => document?.status !== 'cancelado' 
+    }),
+
     defineField({
       name: 'anexo',
       title: 'Imagem do Problema',
@@ -51,12 +88,6 @@ export const ticketType = defineType({
       title: 'Data de Abertura',
       type: 'datetime',
       initialValue: () => new Date().toISOString()
-    }),
-    defineField({
-      name: 'justificativa',
-      title: 'Justificativa de Cancelamento',
-      type: 'text', 
-      hidden: ({document}) => document?.status !== 'cancelado' // Só aparece no painel se estiver cancelado
     }),
   ]
 })

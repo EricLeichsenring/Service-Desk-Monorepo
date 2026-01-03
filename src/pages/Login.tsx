@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // 1. Import para navegação fluida
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { LogIn, Lock, User, Loader2 } from 'lucide-react';
 import { client } from '../lib/sanity'; 
 
 export function Login() {
-  // 2. Hook de navegação
   const navigate = useNavigate();
 
   const [credentials, setCredentials] = useState({
@@ -39,19 +38,21 @@ export function Login() {
         // --- SUCESSO ---
         localStorage.setItem('intranet_user', JSON.stringify(user));
         
-        // LÓGICA DE REDIRECIONAMENTO (Usando navigate para ser fluido)
-        if (user.role === 'manutencao') {
+        // --- LÓGICA DE REDIRECIONAMENTO ATUALIZADA ---
+        // 1. Manutenção, TI e Root vão para o painel de Chamados (admin-os)
+        if (user.role === 'manutencao' || user.role === 'ti' || user.role === 'root') {
           navigate('/admin-os'); 
-        } else if (user.role === 'comunicacao') {
+        } 
+        // 2. Comunicação vai para o gerenciador do site
+        else if (user.role === 'comunicacao') {
           navigate('/admin-site'); 
-        } else {
-          // Fallback para root ou outros
+        } 
+        // 3. Segurança para qualquer outro perfil não mapeado
+        else {
           navigate('/admin-os'); 
         }
 
       } else {
-        // --- ERRO: SENHA INCORRETA ---
-        // Sim, mantemos isso! É o feedback visual.
         setError('Usuário ou senha incorretos.');
       }
 
@@ -77,7 +78,6 @@ export function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             
-            {/* Exibe mensagem de erro se houver */}
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg text-center animate-pulse">
                 {error}

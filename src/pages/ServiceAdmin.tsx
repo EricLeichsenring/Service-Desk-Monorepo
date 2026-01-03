@@ -4,18 +4,20 @@ import { Layout } from '../components/Layout';
 import { 
   Search, CheckCircle, XCircle, Clock, 
   FileText, User, MapPin, ChevronRight, 
-  Printer, LogOut, LayoutDashboard 
+  Printer, LogOut, LayoutDashboard, PlayCircle 
 } from 'lucide-react';
 import { client } from '../lib/sanity'; 
 
+// --- INTERFACE ---
 interface Ticket {
   _id: string;
   nome: string;
   local: string;
   tipo: string;
   descricao: string;
-  status: 'pendente' | 'concluido' | 'cancelado';
-  justificativa?: string; // NOVO CAMPO
+  status: 'pendente' | 'em_andamento' | 'concluido' | 'cancelado'; 
+  justificativa?: string; 
+  materialUtilizado?: string;
   imagemUrl?: string;
   _createdAt: string;
 }
@@ -25,22 +27,34 @@ export function ServiceAdmin() {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pendente' | 'concluido' | 'cancelado'>('pendente');
+  const [activeTab, setActiveTab] = useState<'pendente' | 'em_andamento' | 'concluido' | 'cancelado'>('pendente');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [currentUser, setCurrentUser] = useState<{role?: string} | null>(null);
 
-  const fetchTickets = async () => {
+  const fetchTickets = async (userRole?: string) => {
     setLoading(true);
     try {
-      // ADICIONEI "justificativa" NA QUERY
+      // Normaliza para garantir que TI, ti ou Ti funcionem
+      const roleLimpa = userRole ? userRole.toLowerCase().trim() : '';
+      let filtroSetor = '';
+
+      if (roleLimpa === 'ti') {
+        filtroSetor = '&& setor == "ti"';
+      } 
+      else if (roleLimpa === 'manutencao') {
+        filtroSetor = '&& setor == "manutencao"';
+      }
+      // Se for root, filtroSetor continua vazio e busca tudo.
+
       const query = `
-        *[_type == "chamado"] | order(_createdAt desc) {
-          _id, nome, local, tipo, descricao, status, justificativa,
+        *[_type == "chamado" ${filtroSetor}] | order(_createdAt desc) {
+          _id, nome, local, tipo, descricao, status, justificativa, materialUtilizado,
           "imagemUrl": anexo.asset->url,
           _createdAt
         }
       `;
+      
       const data = await client.fetch(query);
       setTickets(data);
     } catch (error) {
@@ -50,41 +64,63 @@ export function ServiceAdmin() {
     }
   };
 
+  // --- USE EFFECT (CARREGA USUÁRIO E CHAMA O FETCH) ---
   useEffect(() => {
     const userStr = localStorage.getItem('intranet_user');
-    if (!userStr) { navigate('/login'); return; }
+    
+    if (!userStr) { 
+      navigate('/login'); 
+      return; 
+    }
+
     const user = JSON.parse(userStr);
     setCurrentUser(user);
-    fetchTickets();
+
+    // Passamos o role do usuário para a função de busca aplicar o filtro
+    fetchTickets(user.role);
   }, []);
 
-  // --- ATUALIZAR STATUS (COM JUSTIFICATIVA) ---
-  const updateStatus = async (id: string, newStatus: 'concluido' | 'cancelado') => {
-    let justificativaText = '';
+  // --- ATUALIZAR STATUS (COM MATERIAL OU JUSTIFICATIVA) ---
+  const updateStatus = async (id: string, newStatus: 'em_andamento' | 'concluido' | 'cancelado') => {
+    let textoExtra = ''; 
+    
+    // CASO 1: CONCLUIR (Pede material)
+    if (newStatus === 'concluido') {
+      const material = prompt("Informe o material utilizado (ou deixe em branco se não houve):");
+      if (material === null) return; // Cancelou o prompt
+      textoExtra = material || "Sem material utilizado";
+    }
 
-    // Se for cancelar, EXIGIR justificativa
+    // CASO 2: CANCELAR (Pede justificativa)
     if (newStatus === 'cancelado') {
       const motivo = prompt("Por favor, informe o motivo do cancelamento:");
-      if (motivo === null) return; // Clicou em cancelar no prompt
+      if (motivo === null) return; 
       if (motivo.trim() === '') return alert("A justificativa é obrigatória para cancelar.");
-      justificativaText = motivo;
+      textoExtra = motivo;
     }
 
     try {
-      // Monta o objeto de atualização
       const patchData: any = { status: newStatus };
-      if (newStatus === 'cancelado') {
-        patchData.justificativa = justificativaText;
+      
+      if (newStatus === 'concluido') {
+        patchData.materialUtilizado = textoExtra;
+      } else if (newStatus === 'cancelado') {
+        patchData.justificativa = textoExtra;
       }
 
       await client.patch(id).set(patchData).commit();
 
       setTickets(prev => prev.map(ticket => 
-        ticket._id === id ? { ...ticket, status: newStatus, justificativa: justificativaText } : ticket
+        ticket._id === id ? { 
+          ...ticket, 
+          status: newStatus, 
+          justificativa: newStatus === 'cancelado' ? textoExtra : ticket.justificativa,
+          materialUtilizado: newStatus === 'concluido' ? textoExtra : ticket.materialUtilizado
+        } : ticket
       ));
       
       setSelectedTicket(null);
-      alert(`Chamado ${newStatus === 'concluido' ? 'concluído' : 'cancelado'} com sucesso!`);
+      alert(`Status atualizado para: ${newStatus.replace('_', ' ').toUpperCase()}!`);
     } catch (error) {
       console.error("Erro ao atualizar:", error);
       alert("Erro ao atualizar.");
@@ -96,7 +132,7 @@ export function ServiceAdmin() {
     navigate('/login');
   };
 
- // --- IMPRESSÃO INTELIGENTE (Corrigida para não estourar margem) ---
+ // --- IMPRESSÃO INTELIGENTE ---
   const handlePrintReport = () => {
     const reportData = tickets.filter(t => t.status === activeTab);
     if (reportData.length === 0) return alert("Sem dados para imprimir.");
@@ -104,61 +140,37 @@ export function ServiceAdmin() {
     const printWindow = window.open('', '', 'height=600,width=800');
     if (!printWindow) return;
 
-    // Define se estamos na aba de cancelados para ajustar as colunas
     const isCancelledTab = activeTab === 'cancelado';
+    const isCompletedTab = activeTab === 'concluido'; 
 
     printWindow.document.write('<html><head><title>Relatório de O.S.</title>');
     printWindow.document.write(`
       <style>
-        @page { size: A4; margin: 1cm; } /* Margem menor (1cm) para aproveitar a folha */
-        
-        body { 
-          font-family: 'Helvetica', 'Arial', sans-serif; 
-          font-size: 10px; /* Fonte levemente menor */
-          color: #000; 
-          -webkit-print-color-adjust: exact;
-        }
-
+        @page { size: A4; margin: 1cm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10px; color: #000; -webkit-print-color-adjust: exact; }
         .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
         h1 { margin: 0; font-size: 16px; text-transform: uppercase; }
         p { margin: 3px 0; }
-
-        /* TABELA TRAVADA PARA NÃO ESTOURAR */
-        table { 
-          width: 100%; 
-          border-collapse: collapse; 
-          margin-top: 10px; 
-          table-layout: fixed; /* O PULO DO GATO: Obriga a tabela a caber na largura */
-        }
-
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
         th { background-color: #f0f0f0; border: 1px solid #000; padding: 5px; font-weight: bold; text-align: left; vertical-align: middle; }
+        td { border: 1px solid #000; padding: 5px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; word-break: break-all; }
         
-        td { 
-          border: 1px solid #000; 
-          padding: 5px; 
-          vertical-align: top; 
-          
-          /* FORÇA A QUEBRA DE TEXTO LONGO */
-          word-wrap: break-word; 
-          overflow-wrap: break-word; 
-          word-break: break-all;
-        }
-        
-        /* Larguras das Colunas (Ajuste fino) */
-        .col-data { width: 70px; }
+        .col-data { width: 65px; }
         .col-id { width: 45px; text-align: center; }
-        
-        /* Se for cancelado, aperta as colunas normais para caber a justificativa */
-        .col-solicitante { width: ${isCancelledTab ? '12%' : '18%'}; }
-        .col-local { width: ${isCancelledTab ? '12%' : '18%'}; }
-        .col-tipo { width: ${isCancelledTab ? '8%' : '12%'}; }
-        /* Descrição e Justificativa dividem o resto automaticamente */
-
+        .col-solicitante { width: ${isCancelledTab || isCompletedTab ? '12%' : '18%'}; }
+        .col-local { width: ${isCancelledTab || isCompletedTab ? '12%' : '18%'}; }
+        .col-tipo { width: ${isCancelledTab || isCompletedTab ? '8%' : '12%'}; }
       </style>
     `);
     printWindow.document.write('</head><body>');
     
-    const titulos = { pendente: 'EM ABERTO', concluido: 'REALIZADAS', cancelado: 'CANCELADAS' };
+    const titulos = { 
+      pendente: 'EM ABERTO', 
+      em_andamento: 'EM ANDAMENTO', 
+      concluido: 'REALIZADAS', 
+      cancelado: 'CANCELADAS' 
+    };
+
     printWindow.document.write(`
       <div class="header">
         <h1>Relatório de Ordens de Serviço</h1>
@@ -167,7 +179,6 @@ export function ServiceAdmin() {
       </div>
     `);
 
-    // CABEÇALHO DA TABELA
     printWindow.document.write('<table><thead><tr>');
     printWindow.document.write('<th class="col-data">Data</th>');
     printWindow.document.write('<th class="col-id">ID</th>');
@@ -176,13 +187,11 @@ export function ServiceAdmin() {
     printWindow.document.write('<th class="col-tipo">Tipo</th>');
     printWindow.document.write('<th>Descrição</th>');
     
-    if (isCancelledTab) {
-      printWindow.document.write('<th>Motivo Cancelamento</th>');
-    }
+    if (isCancelledTab) printWindow.document.write('<th>Motivo Cancelamento</th>');
+    if (isCompletedTab) printWindow.document.write('<th>Material Utilizado</th>');
     
     printWindow.document.write('</tr></thead><tbody>');
 
-    // CORPO DA TABELA
     reportData.forEach(item => {
       printWindow.document.write('<tr>');
       printWindow.document.write(`<td>${new Date(item._createdAt).toLocaleDateString('pt-BR')} <br/> ${new Date(item._createdAt).toLocaleTimeString('pt-BR').slice(0,5)}</td>`);
@@ -192,10 +201,9 @@ export function ServiceAdmin() {
       printWindow.document.write(`<td>${item.tipo}</td>`);
       printWindow.document.write(`<td>${item.descricao}</td>`);
       
-      if (isCancelledTab) {
-        // Exibe traço se não tiver justificativa (para manter a borda da tabela)
-        printWindow.document.write(`<td>${item.justificativa || '—'}</td>`);
-      }
+      if (isCancelledTab) printWindow.document.write(`<td>${item.justificativa || '—'}</td>`);
+      if (isCompletedTab) printWindow.document.write(`<td>${item.materialUtilizado || '—'}</td>`);
+      
       printWindow.document.write('</tr>');
     });
 
@@ -208,6 +216,7 @@ export function ServiceAdmin() {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
 
+  // Filtro local da barra de pesquisa
   const filteredTickets = tickets.filter(t => {
     const matchesTab = t.status === activeTab;
     const matchesSearch = t._id.slice(-4).includes(searchTerm) || t.nome.toLowerCase().includes(searchTerm.toLowerCase()) || t.local.toLowerCase().includes(searchTerm.toLowerCase());
@@ -220,16 +229,25 @@ export function ServiceAdmin() {
         
         {/* MENU LATERAL */}
         <div className="w-64 flex-shrink-0 flex flex-col h-fit space-y-2">
+          
           <button onClick={() => { setActiveTab('pendente'); setSelectedTicket(null); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'pendente' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
             <Clock className="w-5 h-5" /> <span className="font-medium">Em Aberto</span>
             <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">{tickets.filter(t => t.status === 'pendente').length}</span>
           </button>
+
+          <button onClick={() => { setActiveTab('em_andamento'); setSelectedTicket(null); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'em_andamento' ? 'bg-yellow-500 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
+            <PlayCircle className="w-5 h-5" /> <span className="font-medium">Em Andamento</span>
+            <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full">{tickets.filter(t => t.status === 'em_andamento').length}</span>
+          </button>
+
           <button onClick={() => { setActiveTab('concluido'); setSelectedTicket(null); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'concluido' ? 'bg-green-100 text-green-700 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
             <CheckCircle className="w-5 h-5" /> <span className="font-medium">Realizadas</span>
           </button>
+
           <button onClick={() => { setActiveTab('cancelado'); setSelectedTicket(null); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'cancelado' ? 'bg-red-100 text-red-700 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
             <XCircle className="w-5 h-5" /> <span className="font-medium">Canceladas</span>
           </button>
+
           <div className="pt-4 mt-4 border-t border-gray-200">
             <button onClick={handlePrintReport} className="w-full flex items-center gap-3 px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-all shadow-sm">
               <Printer className="w-5 h-5" /> <span className="font-medium">Relatório</span>
@@ -242,7 +260,10 @@ export function ServiceAdmin() {
           <div className="flex justify-between items-center mb-2">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">Painel de O.S.</h1>
-              <p className="text-gray-600">Gerenciamento de chamados técnicos</p>
+              <p className="text-gray-600">
+                {/* Mostra qual setor está sendo exibido para confirmação visual */}
+                {currentUser?.role === 'root' ? 'Administração Geral' : currentUser?.role === 'ti' ? 'Setor de TI' : 'Setor de Manutenção'}
+              </p>
             </div>
             <div className="flex items-center gap-4">
               {currentUser?.role === 'root' && (
@@ -283,11 +304,17 @@ export function ServiceAdmin() {
                   </div>
                   <div><h3 className="font-bold text-gray-800 mb-2">Descrição</h3><p className="text-gray-600 bg-gray-50 p-4 rounded-lg border border-gray-200">{selectedTicket.descricao}</p></div>
                   
-                  {/* EXIBE JUSTIFICATIVA SE CANCELADO */}
                   {selectedTicket.status === 'cancelado' && selectedTicket.justificativa && (
                     <div>
                       <h3 className="font-bold text-red-700 mb-2">Motivo do Cancelamento</h3>
                       <p className="text-red-600 bg-red-50 p-4 rounded-lg border border-red-200 italic">"{selectedTicket.justificativa}"</p>
+                    </div>
+                  )}
+
+                  {selectedTicket.status === 'concluido' && (
+                    <div>
+                      <h3 className="font-bold text-green-700 mb-2">Material Utilizado</h3>
+                      <p className="text-green-800 bg-green-50 p-4 rounded-lg border border-green-200">{selectedTicket.materialUtilizado || "Nenhum material informado."}</p>
                     </div>
                   )}
 
@@ -296,15 +323,28 @@ export function ServiceAdmin() {
 
                 <div className="md:col-span-1 space-y-3">
                   <h3 className="font-bold text-gray-800 mb-2">Ações</h3>
-                  {selectedTicket.status === 'pendente' && (
+                  
+                  {selectedTicket.status !== 'concluido' && selectedTicket.status !== 'cancelado' && (
                     <>
-                      <button onClick={() => updateStatus(selectedTicket._id, 'concluido')} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"><CheckCircle className="w-5 h-5" /><span>Marcar Executada</span></button>
-                      <button onClick={() => updateStatus(selectedTicket._id, 'cancelado')} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-all"><XCircle className="w-5 h-5" /><span>Cancelar O.S.</span></button>
+                      {selectedTicket.status === 'pendente' && (
+                        <button onClick={() => updateStatus(selectedTicket._id, 'em_andamento')} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-bold">
+                          <PlayCircle className="w-5 h-5" /><span>Iniciar Atendimento</span>
+                        </button>
+                      )}
+
+                      <button onClick={() => updateStatus(selectedTicket._id, 'concluido')} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold">
+                        <CheckCircle className="w-5 h-5" /><span>Marcar Executada</span>
+                      </button>
+                      
+                      <button onClick={() => updateStatus(selectedTicket._id, 'cancelado')} className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-all">
+                        <XCircle className="w-5 h-5" /><span>Cancelar O.S.</span>
+                      </button>
                     </>
                   )}
-                  {selectedTicket.status !== 'pendente' && (
+
+                  { (selectedTicket.status === 'concluido' || selectedTicket.status === 'cancelado') && (
                     <div className={`p-4 rounded-lg text-center border ${selectedTicket.status === 'concluido' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                      <p className="font-bold uppercase">Ordem {selectedTicket.status}</p>
+                      <p className="font-bold uppercase">Ordem {selectedTicket.status.replace('_', ' ')}</p>
                     </div>
                   )}
                 </div>
@@ -315,12 +355,23 @@ export function ServiceAdmin() {
               {loading ? <p className="text-center text-gray-500 py-10">Carregando...</p> : filteredTickets.length > 0 ? filteredTickets.map((ticket) => (
                 <div key={ticket._id} onClick={() => setSelectedTicket(ticket)} className="group bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-all cursor-pointer flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${ticket.status === 'pendente' ? 'bg-blue-100 text-blue-600' : ticket.status === 'concluido' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}><FileText className="w-6 h-6" /></div>
-                    <div><h4 className="font-bold text-gray-800 flex items-center gap-2">{ticket.nome} <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded">#{ticket._id.slice(-6).toUpperCase()}</span></h4><p className="text-sm text-gray-500">{ticket.local} • {ticket.tipo}</p></div>
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center 
+                      ${ticket.status === 'pendente' ? 'bg-blue-100 text-blue-600' : 
+                        ticket.status === 'em_andamento' ? 'bg-yellow-100 text-yellow-600' :
+                        ticket.status === 'concluido' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                        {ticket.nome} 
+                        <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded">#{ticket._id.slice(-6).toUpperCase()}</span>
+                      </h4>
+                      <p className="text-sm text-gray-500">{ticket.local} • {ticket.tipo}</p>
+                    </div>
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-500" />
                 </div>
-              )) : <div className="text-center py-12 border border-dashed rounded-lg"><p className="text-gray-500">Nenhum chamado encontrado.</p></div>}
+              )) : <div className="text-center py-12 border border-dashed rounded-lg"><p className="text-gray-500">Nenhum chamado encontrado nesta categoria.</p></div>}
             </div>
           )}
         </div>

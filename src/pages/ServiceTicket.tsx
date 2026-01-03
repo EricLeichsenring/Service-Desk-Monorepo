@@ -44,6 +44,19 @@ export function ServiceTicket() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      // 1. DEFINIR A LÓGICA DE ROTEAMENTO
+      // Lista de tipos que pertencem ao setor de TI
+      const tiposTI = [
+        "Hardware - Equipamentos", 
+        "Rede - Conectividade", 
+        "Impressora"
+      ];
+
+      // Se o tipo selecionado estiver na lista acima, vai para TI, senão vai para Manutenção
+      const setorResponsavel = tiposTI.includes(formData.ticketType) 
+        ? 'ti' 
+        : 'manutencao';
+
       let imageAssetId = null;
       if (selectedFile) {
         const asset = await client.assets.upload('image', selectedFile, {
@@ -51,6 +64,7 @@ export function ServiceTicket() {
         });
         imageAssetId = asset._id;
       }
+
       const doc = await client.create({
         _type: 'chamado',
         nome: formData.name,
@@ -58,8 +72,13 @@ export function ServiceTicket() {
         tipo: formData.ticketType,
         descricao: formData.description,
         status: 'pendente',
+        
+        // 2. SALVAR O SETOR NO BANCO DE DADOS
+        setor: setorResponsavel, 
+
         anexo: imageAssetId ? { _type: 'image', asset: { _type: 'reference', _ref: imageAssetId } } : undefined
       });
+      
       setCreatedTicketId(doc._id);
     } catch (error) {
       console.error("Erro:", error);
@@ -231,11 +250,12 @@ export function ServiceTicket() {
                 <select id="ticketType" value={formData.ticketType} onChange={(e) => setFormData({ ...formData, ticketType: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" required disabled={isSubmitting}>
                   <option value="">Selecione o tipo de chamado</option>
                   <option value="Hardware - Equipamentos">Hardware - Equipamentos</option>
-                  <option value="Software - Sistemas">Software - Sistemas</option>
                   <option value="Rede - Conectividade">Rede - Conectividade</option>
                   <option value="Impressora">Impressora</option>
-                  <option value="Email">Email</option>
-                  <option value="Outro">Outro</option>
+                  <option value="Eletrica">Elétrica - lâmpadas, tomadas, fios</option>
+                  <option value="Hidraulica">Hidráulica - torneiras, chuveiros, pias, sanitários</option>
+                  <option value="Conserto de mobilia">Conserto de mobília - mesa, cadeira, armários</option>
+                  <option value="Outro">Outros</option>
                 </select>
               </div>
 
