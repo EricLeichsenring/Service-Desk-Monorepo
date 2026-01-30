@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ROOT
+  TI
+  MANUTENCAO
+  COMUNICACAO
+}
+
+enum TicketStatus {
+  PENDENTE
+  AGUARDANDO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum TicketSector {
+  TI
+  MANUTENCAO
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  login     String   @unique
+  senha     String   
+  role      UserRole @default(MANUTENCAO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  chamados  Ticket[]
+}
+
+model Ticket {
+  id               Int          @id @default(autoincrement())
+  status           TicketStatus @default(PENDENTE)
+  setorResponsavel TicketSector @default(MANUTENCAO)
+  
+  nomeSolicitante String
+  local           String      
+  tipoProblema    String
+  descricao       String       @db.Text
+  
+  materialUtilizado String?    @db.Text 
+  justificativa     String?    @db.Text 
+  
+  anexoUrl        String?      
+  
+  dataAbertura    DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  userId          Int?
+  user            User?        @relation(fields: [userId], references: [id])
+}
+
+// Model simples para os documentos
+model Document {
+  id         Int      @id @default(autoincrement())
+  titulo     String
+  setor      String   
+  arquivoUrl String   
+  createdAt  DateTime @default(now())
+}
+
+// Model simplificado: Itens soltos, sem relação com pai
+model CarouselSlide {
+  id        Int      @id @default(autoincrement())
+  titulo    String?
+  texto     String?  @db.Text
+  imagemUrl String?
+  createdAt DateTime @default(now())
+}
