@@ -8,7 +8,7 @@ async function bootstrap() {
   // --- ADICIONE ESTAS LINHAS ---
   app.enableCors({
   origin: [
-    'https://service-desk-monorepo.vercel.app/', // Sua URL da Vercel
+    'https://service-desk-monorepo.vercel.app', // Sua URL da Vercel
     'http://localhost:5173',          // Localhost do Vite
   ],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
