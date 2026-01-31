@@ -20,7 +20,10 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* ADICIONE ESTA LINHA ABAIXO */
+    "types": ["vite/client"]
   },
   "include": [
     "../Sistema-de-Intranet-Corporativa-Service-Desk/frontend/src"
