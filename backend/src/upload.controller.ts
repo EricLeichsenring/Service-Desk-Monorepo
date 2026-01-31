@@ -2,6 +2,7 @@ import { Controller, Post, UseInterceptors, UploadedFile } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { Multer } from 'multer';
 
 @Controller('upload')
 export class UploadController {
@@ -16,7 +17,7 @@ export class UploadController {
       },
     }),
   }))
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
+  uploadFile(@UploadedFile() file: any) {
     // PROTEÇÃO: Se não vier arquivo, retorna erro amigável em vez de travar
     if (!file) {
       return { erro: 'Nenhum arquivo enviado. Verifique se o campo se chama "file"' };
