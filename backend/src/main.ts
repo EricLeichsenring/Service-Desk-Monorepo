@@ -7,11 +7,13 @@ async function bootstrap() {
 
   // --- ADICIONE ESTAS LINHAS ---
   app.enableCors({
-    origin: '*', // Permite qualquer origem (ideal para teste inicial)
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
-    credentials: true,
-  });
+  origin: [
+    'https://service-desk-monorepo.vercel.app/', // Sua URL da Vercel
+    'http://localhost:5173',          // Localhost do Vite
+  ],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+});
   app.useGlobalPipes(new ValidationPipe()); // Ativa as validações (IsString, IsNotEmpty)
   // ----------------------------
 
